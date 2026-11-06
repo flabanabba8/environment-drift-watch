@@ -2,6 +2,7 @@
 import datetime
 import hashlib
 import json
+import os
 from pathlib import Path
 import re
 import stat
@@ -20,15 +21,21 @@ def measure(path):
     p = p.resolve(strict=True)
     if any(x in PRIVATE for x in p.parts):
         raise ValueError('Private configuration paths are unsupported')
-    before = p.stat()
-    if not stat.S_ISREG(before.st_mode) or before.st_size > MAX_FILE:
-        raise ValueError('Only regular files up to 256 MiB are supported')
+    fd = os.open(p, os.O_RDONLY | getattr(os, 'O_NOFOLLOW', 0) | getattr(os, 'O_NONBLOCK', 0))
     h = hashlib.sha256()
-    with p.open('rb') as f:
-        for chunk in iter(lambda: f.read(1024 * 1024), b''):
+    with os.fdopen(fd, 'rb') as stream:
+        before = os.fstat(stream.fileno())
+        if not stat.S_ISREG(before.st_mode) or before.st_size > MAX_FILE:
+            raise ValueError('Only regular files up to 256 MiB are supported')
+        total = 0
+        for chunk in iter(lambda: stream.read(1024 * 1024), b''):
+            total += len(chunk)
+            if total > MAX_FILE: raise ValueError('File exceeds 256 MiB while measuring')
             h.update(chunk)
-    after = p.stat()
-    if (before.st_dev, before.st_ino, before.st_size, before.st_mtime_ns, before.st_mode, before.st_uid, before.st_gid) != (after.st_dev, after.st_ino, after.st_size, after.st_mtime_ns, after.st_mode, after.st_uid, after.st_gid):
+        after = os.fstat(stream.fileno())
+    fields = lambda value: (value.st_dev, value.st_ino, value.st_size, value.st_mtime_ns, value.st_mode, value.st_uid, value.st_gid)
+    current = p.lstat()
+    if fields(before) != fields(after) or fields(after) != fields(current) or not stat.S_ISREG(current.st_mode):
         raise ValueError('File changed while measuring')
     return {'sha256': h.hexdigest(), 'size': after.st_size, 'mode': stat.S_IMODE(after.st_mode),
             'uid': after.st_uid, 'gid': after.st_gid}

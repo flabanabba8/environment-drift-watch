@@ -1,6 +1,6 @@
 # Environment Drift Watch
 
-Create a baseline from an explicit list of absolute local file paths. The plugin stores their SHA-256 hashes, sizes, permissions, numeric owner/group IDs and capture time, not their contents. Compare later to see which selected files changed, disappeared, or can no longer be read safely. Older baselines that lack owner/group IDs report those fields as unrecorded. List saved baseline IDs to recover previous file, service and package checks.
+Create a baseline from an explicit list of absolute local file paths. The plugin stores their SHA-256 hashes, sizes, permissions, numeric owner/group IDs and capture time, not their contents. Compare later to see which selected files changed, disappeared, or can no longer be read safely. Hashing checks file identity and attributes before and after the read, and rejects atomic replacement during the snapshot. Older baselines that lack owner/group IDs report those fields as unrecorded. List saved baseline IDs to recover previous file, service and package checks.
 
 For systemd hosts, separately baseline up to 20 explicitly named user or system services and compare selected load, active, substate, enablement and active-entry fields. Queries use `systemctl show`; the plugin never starts, stops or reconfigures services. These are point-in-time observations and do not prove a service is healthy or correctly configured.
 

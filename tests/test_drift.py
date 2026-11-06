@@ -3,6 +3,7 @@ import os
 from pathlib import Path
 import tempfile
 import unittest
+from unittest.mock import patch
 
 spec = importlib.util.spec_from_file_location('drift_core', Path(__file__).parents[1] / 'core.py')
 core = importlib.util.module_from_spec(spec)
@@ -55,6 +56,19 @@ class DriftTests(unittest.TestCase):
         record['files'][str(self.a)]['uid'] += 1
         path.write_text(json.dumps(record))
         self.assertIn('uid', self.drift.compare(self.id)['files'][0]['changed_fields'])
+
+    def test_replaced_during_hashing_is_rejected(self):
+        replacement = self.root / 'replacement'; replacement.write_text('different')
+        original = core.os.fstat
+        calls = 0
+        def replace(fd):
+            nonlocal calls
+            calls += 1
+            value = original(fd)
+            if calls == 2: core.os.replace(replacement, self.a)
+            return value
+        with patch.object(core.os, 'fstat', side_effect=replace):
+            with self.assertRaisesRegex(ValueError, 'changed while measuring'): core.measure(str(self.a))
 
     def test_recover_baseline_id_without_exposing_file_paths(self):
         root = self.root / 'baselines'
