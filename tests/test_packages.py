@@ -10,6 +10,14 @@ core=importlib.util.module_from_spec(spec)
 spec.loader.exec_module(core)
 
 class PackageTests(unittest.TestCase):
+    def test_new_package_baseline_is_private_under_permissive_umask(self):
+        with tempfile.TemporaryDirectory(dir='/tmp') as tmp:
+            old=os.umask(0)
+            try:
+                with patch.object(core,'read_package',return_value={'status':'installed','version':'1'}):
+                    ident=core.Packages(tmp).baseline_packages(['fixture'])['baseline_id']
+                self.assertEqual((Path(tmp)/(ident+'.packages.json')).stat().st_mode & 0o777,0o600)
+            finally: os.umask(old)
     def test_baseline_and_version_change(self):
         with tempfile.TemporaryDirectory(dir='/tmp') as tmp:
             plugin=core.Packages(tmp)

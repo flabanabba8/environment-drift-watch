@@ -55,7 +55,7 @@ class Drift:
         baseline_id = uuid.uuid4().hex
         record = {'created_at': datetime.datetime.now(datetime.timezone.utc).isoformat(), 'files': files}
         self.root.mkdir(mode=0o700, parents=True, exist_ok=True)
-        with (self.root / (baseline_id + '.json')).open('x', encoding='utf-8') as f:
+        with os.fdopen(os.open(self.root / (baseline_id + '.json'), os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600), 'w', encoding='utf-8') as f:
             json.dump(record, f)
         return {'baseline_id': baseline_id, 'created_at': record['created_at'], 'files': len(files)}
 

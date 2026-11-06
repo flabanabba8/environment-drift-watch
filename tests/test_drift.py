@@ -31,6 +31,14 @@ class DriftTests(unittest.TestCase):
         self.assertEqual([x['status'] for x in findings], ['changed', 'missing'])
         self.assertIn('sha256', findings[0]['changed_fields'])
 
+    def test_new_file_baseline_is_private_under_permissive_umask(self):
+        previous = os.umask(0)
+        try:
+            ident = self.drift.baseline([str(self.a)])['baseline_id']
+            self.assertEqual((self.root / 'baselines' / (ident + '.json')).stat().st_mode & 0o777, 0o600)
+        finally:
+            os.umask(previous)
+
     def test_mode_and_symlink(self):
         os.chmod(self.a, 0o600)
         self.assertIn('mode', self.drift.compare(self.id)['files'][0]['changed_fields'])

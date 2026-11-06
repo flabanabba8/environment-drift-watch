@@ -46,7 +46,7 @@ class Packages:
         ident = uuid.uuid4().hex
         self.root.mkdir(parents=True,exist_ok=True,mode=0o700)
         record = {'created_at':datetime.datetime.now(datetime.timezone.utc).isoformat(),'states':states}
-        with self.path(ident).open('x',encoding='utf-8') as f: json.dump(record,f)
+        with os.fdopen(os.open(self.path(ident), os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600), 'w', encoding='utf-8') as f: json.dump(record,f)
         return {'baseline_id':ident,'packages':len(states),'created_at':record['created_at']}
 
     def compare_packages(self, baseline_id):

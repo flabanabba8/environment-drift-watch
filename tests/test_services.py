@@ -10,6 +10,14 @@ core=importlib.util.module_from_spec(spec)
 spec.loader.exec_module(core)
 
 class ServiceTests(unittest.TestCase):
+    def test_new_service_baseline_is_private_under_permissive_umask(self):
+        with tempfile.TemporaryDirectory(dir='/tmp') as tmp:
+            old=os.umask(0)
+            try:
+                with patch.object(core,'read_service',return_value={'LoadState':'loaded','ActiveState':'active'}):
+                    ident=core.Services(tmp).baseline_services(['fixture.service'])['baseline_id']
+                self.assertEqual((Path(tmp)/(ident+'.services.json')).stat().st_mode & 0o777,0o600)
+            finally: os.umask(old)
     def test_baseline_and_change_without_mutation(self):
         with tempfile.TemporaryDirectory(dir='/tmp') as tmp:
             plugin=core.Services(tmp)
