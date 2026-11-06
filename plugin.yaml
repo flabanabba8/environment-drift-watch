@@ -1,0 +1,14 @@
+name: environment-drift-watch
+version: "0.1.0"
+description: "Detect changes to explicitly selected local files without storing their contents."
+author: "Environment Drift Watch contributors"
+license: GPL-3.0-or-later
+requires_hermes: ">=0.22.0"
+provides_tools:
+  - drift_baseline
+  - drift_compare
+  - drift_baseline_services
+  - drift_compare_services
+  - drift_baseline_packages
+  - drift_compare_packages
+  - drift_list_baselines

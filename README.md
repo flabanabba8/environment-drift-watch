@@ -1,0 +1,7 @@
+# Environment Drift Watch
+
+Create a baseline from an explicit list of absolute local file paths. The plugin stores their SHA-256 hashes, sizes, permissions, numeric owner/group IDs and capture time, not their contents. Compare later to see which selected files changed, disappeared, or can no longer be read safely. Older baselines that lack owner/group IDs report those fields as unrecorded. List saved baseline IDs to recover previous file, service and package checks.
+
+For systemd hosts, separately baseline up to 20 explicitly named user or system services and compare selected load, active, substate, enablement and active-entry fields. Queries use `systemctl show`; the plugin never starts, stops or reconfigures services. These are point-in-time observations and do not prove a service is healthy or correctly configured.
+
+On Debian-based hosts it can also baseline and compare versions of explicitly named installed packages using `dpkg-query`. It never installs or updates packages. This prototype monitors only selected files, services and packages, not new files or all service configuration. A baseline records observed state; it does not certify that state as safe, prevent changes or restore files. Baselines live in the private Hermes plugin data directory; their path and service names may be sensitive. Symlink inputs and credential directories are rejected. Eleven tests pass, with read-only live systemd and Debian package comparisons; no scheduling, Windows or production monitoring test has been completed.
