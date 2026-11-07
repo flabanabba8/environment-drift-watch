@@ -14,12 +14,12 @@ MAX_FILE = 256 * 1024**2
 
 def measure(path):
     p = Path(path).expanduser()
-    if not p.is_absolute() or any(x in PRIVATE for x in p.parts):
+    if not p.is_absolute() or any(x.casefold() in PRIVATE for x in p.parts):
         raise ValueError('Use absolute paths outside private configuration')
     if p.is_symlink():
         raise ValueError('Symlink inputs are unsupported')
     p = p.resolve(strict=True)
-    if any(x in PRIVATE for x in p.parts):
+    if any(x.casefold() in PRIVATE for x in p.parts):
         raise ValueError('Private configuration paths are unsupported')
     fd = os.open(p, os.O_RDONLY | getattr(os, 'O_NOFOLLOW', 0) | getattr(os, 'O_NONBLOCK', 0))
     h = hashlib.sha256()

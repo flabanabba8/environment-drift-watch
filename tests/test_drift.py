@@ -10,6 +10,10 @@ core = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(core)
 
 class DriftTests(unittest.TestCase):
+    def test_mixed_case_private_directory_is_rejected(self):
+        folder=self.root/'.CoDeX';folder.mkdir();source=folder/'fixture.txt';source.write_text('fictional')
+        with self.assertRaises(ValueError):core.measure(str(source))
+
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory(dir='/tmp')
         self.root = Path(self.tmp.name)
