@@ -50,6 +50,20 @@ class DriftTests(unittest.TestCase):
         self.b.symlink_to(self.a)
         self.assertEqual(self.drift.compare(self.id)['files'][1]['status'], 'inaccessible_or_unsupported')
 
+    def test_follow_symlinks_records_the_target_and_reports_a_repointed_link(self):
+        link, other = self.root / 'link', self.root / 'other'
+        other.write_text('another file')
+        link.symlink_to(self.a)
+        with self.assertRaisesRegex(ValueError, 'follow_symlinks'): self.drift.baseline([str(link)])
+        with self.assertRaises(ValueError): self.drift.baseline([str(link)], follow_symlinks='yes')
+        ident = self.drift.baseline([str(link)], follow_symlinks=True)['baseline_id']
+        self.assertEqual(self.drift.compare(ident)['files'][0]['status'], 'unchanged')
+        link.unlink(); link.symlink_to(other)
+        finding = self.drift.compare(ident)['files'][0]
+        self.assertEqual(finding['status'], 'changed'); self.assertIn('link_target', finding['changed_fields'])
+        link.unlink(); link.write_text('now a regular file')
+        self.assertIn('link_target', self.drift.compare(ident)['files'][0]['changed_fields'])
+
     def test_older_baselines_do_not_claim_ownership_was_checked(self):
         import json
         path = self.root / 'baselines' / (self.id + '.json')

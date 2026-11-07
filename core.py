@@ -12,12 +12,14 @@ PRIVATE = {'.ssh', '.gnupg', '.aws', '.azure', '.codex', '.docker', '.kube', '.p
 MAX_FILE = 256 * 1024**2
 
 
-def measure(path):
+def measure(path, follow_symlinks=False):
     p = Path(path).expanduser()
     if not p.is_absolute() or any(x.casefold() in PRIVATE for x in p.parts):
         raise ValueError('Use absolute paths outside private configuration')
+    link_target = None
     if p.is_symlink():
-        raise ValueError('Symlink inputs are unsupported')
+        if not follow_symlinks: raise ValueError('Symlink inputs are unsupported unless follow_symlinks is set')
+        link_target = str(p.resolve(strict=True))
     p = p.resolve(strict=True)
     if any(x.casefold() in PRIVATE for x in p.parts):
         raise ValueError('Private configuration paths are unsupported')
@@ -37,21 +39,24 @@ def measure(path):
     current = p.lstat()
     if fields(before) != fields(after) or fields(after) != fields(current) or not stat.S_ISREG(current.st_mode):
         raise ValueError('File changed while measuring')
-    return {'sha256': h.hexdigest(), 'size': after.st_size, 'mode': stat.S_IMODE(after.st_mode),
-            'uid': after.st_uid, 'gid': after.st_gid}
+    result = {'sha256': h.hexdigest(), 'size': after.st_size, 'mode': stat.S_IMODE(after.st_mode),
+              'uid': after.st_uid, 'gid': after.st_gid}
+    if link_target is not None: result['link_target'] = link_target
+    return result
 
 
 class Drift:
     def __init__(self, root):
         self.root = Path(root)
 
-    def baseline(self, paths):
+    def baseline(self, paths, follow_symlinks=False):
+        if type(follow_symlinks) is not bool: raise ValueError('follow_symlinks must be boolean')
         if not isinstance(paths, list) or not 1 <= len(paths) <= 1000 or any(not isinstance(x, str) for x in paths):
             raise ValueError('Provide 1–1000 file paths')
         canonical = [str(Path(x).expanduser()) for x in paths]
         if len(set(canonical)) != len(canonical):
             raise ValueError('Duplicate paths')
-        files = {path: measure(path) for path in canonical}
+        files = {path: measure(path, follow_symlinks) for path in canonical}
         baseline_id = uuid.uuid4().hex
         record = {'created_at': datetime.datetime.now(datetime.timezone.utc).isoformat(), 'files': files}
         self.root.mkdir(mode=0o700, parents=True, exist_ok=True)
@@ -88,9 +93,10 @@ class Drift:
         findings = []
         for name, before in record['files'].items():
             try:
-                now = measure(name)
+                now = measure(name, 'link_target' in before)
                 fields = ('sha256', 'size', 'mode', 'uid', 'gid')
                 changed = [k for k in fields if k in before and before[k] != now[k]]
+                if before.get('link_target') != now.get('link_target'): changed.append('link_target')
                 unrecorded = [k for k in fields if k not in before]
                 status = 'changed' if changed else 'unchanged_in_recorded_fields' if unrecorded else 'unchanged'
                 findings.append({'path': name, 'status': status, 'changed_fields': changed,
